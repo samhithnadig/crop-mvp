@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CROP — Reframe for every feed</title>
+<style>
+  :root{
+    --bg:#0d0f12;
+    --panel:#15181c;
+    --panel-raised:#1c2026;
+    --border:#262b31;
+    --amber:#ff8a3d;
+    --teal:#2dd4bf;
+    --text:#f1efe9;
+    --text-muted:#8a8f98;
+    --mono: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+  }
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:22px 32px;
+    border-bottom:1px solid var(--border);
+  }
+  .logo{
+    font-family:var(--sans);
+    font-weight:900;
+    font-size:22px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .logo .dot{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 12px var(--amber);
+  }
+  .tagline{
+    color:var(--text-muted);
+    font-size:13px;
+    font-family:var(--mono);
+    letter-spacing:0.02em;
+  }
+
+  main{
+    display:grid;
+    grid-template-columns:1fr 340px;
+    gap:0;
+    max-width:1240px;
+    margin:0 auto;
+    min-height:calc(100vh - 78px);
+  }
+  @media (max-width:880px){
+    main{grid-template-columns:1fr;}
+  }
+
+  .stage{
+    padding:40px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:520px;
+  }
+
+  .dropzone{
+    width:100%;
+    max-width:520px;
+    border:1.5px dashed var(--border);
+    border-radius:4px;
+    padding:64px 32px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover, .dropzone.dragover{
+    border-color:var(--amber);
+    background:rgba(255,138,61,0.04);
+  }
+  .dropzone-icon{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:16px;
+  }
+  .dropzone h2{
+    font-size:19px;
+    font-weight:600;
+    margin:0 0 8px;
+  }
+  .dropzone p{
+    color:var(--text-muted);
+    font-size:14px;
+    margin:0;
+  }
+  input[type=file]{display:none;}
+
+  .url-row{
+    width:100%;
+    max-width:520px;
+    margin-top:18px;
+  }
+  .url-divider{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+  }
+  .url-divider::before, .url-divider::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+  .url-divider span{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+  .url-input-group{
+    display:flex;
+    gap:8px;
+  }
+  .url-input-group input{
+    flex:1;
+    background:var(--panel-raised);
+    border:1px solid var(--border);
+    border-radius:3px;
+    color:var(--text);
+    padding:12px 14px;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  .url-input-group input:focus{
+    outline:none;
+    border-color:var(--amber);
+  }
+  .url-input-group input.error{
+    border-color:#e05a4d;
+  }
+  .url-input-group button{
+    white-space:nowrap;
+  }
+  #urlHint{
+    margin-top:10px;
+    text-align:left;
+  }
+  #urlHint.error-text{color:#e05a4d;}
+
+  .track-toggle{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:14px;
+    font-size:13px;
+    cursor:pointer;
+    color:var(--text);
+  }
+  .track-toggle input{
+    width:16px;height:16px;
+    accent-color:var(--teal);
+  }
+  .track-toggle small{
+    color:var(--text-muted);
+    font-family:var(--mono);
+    font-size:11px;
+  }
+  .track-toggle.disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+  }
+
+  .preview-wrap{
+    position:relative;
+    display:none;
+    max-width:100%;
+  }
+  .preview-wrap.active{display:block;}
+
+  .frame{
+    position:relative;
+    background:#000;
+    border-radius:2px;
+    overflow:hidden;
+    line-height:0;
+  }
+  video{
+    display:block;
+    max-width:100%;
+    max-height:60vh;
+  }
+
+  .crop-box{
+    position:absolute;
+    border:2px solid var(--amber);
+    box-shadow:0 0 0 4000px rgba(0,0,0,0.55);
+    cursor:grab;
+    touch-action:none;
+  }
+  .crop-box:active{cursor:grabbing;}
+  .crop-box::before, .crop-box::after,
+  .corner-tl, .corner-tr, .corner-bl, .corner-br{
+    content:'';
+    position:absolute;
+    width:18px;
+    height:18px;
+    pointer-events:none;
+  }
+  .corner-tl{top:-2px;left:-2px;border-top:3px solid var(--teal);border-left:3px solid var(--teal);}
+  .corner-tr{top:-2px;right:-2px;border-top:3px solid var(--teal);border-right:3px solid var(--teal);}
+  .corner-bl{bottom:-2px;left:-2px;border-bottom:3px solid var(--teal);border-left:3px solid var(--teal);}
+  .corner-br{bottom:-2px;right:-2px;border-bottom:3px solid var(--teal);border-right:3px solid var(--teal);}
+
+  .readout{
+    margin-top:14px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--text-muted);
+    display:flex;
+    gap:18px;
+  }
+  .readout span b{color:var(--teal);font-weight:600;}
+
+  .panel{
+    background:var(--panel);
+    border-left:1px solid var(--border);
+    padding:32px 28px;
+    display:flex;
+    flex-direction:column;
+    gap:28px;
+  }
+  @media (max-width:880px){
+    .panel{border-left:none;border-top:1px solid var(--border);}
+  }
+
+  .section-label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin-bottom:12px;
+  }
+
+  .format-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .format-btn{
+    background:var(--panel-raised);
+    border:1px solid var(--border);
+    border-radius:3px;
+    color:var(--text);
+    padding:14px 10px;
+    cursor:pointer;
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:600;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .format-btn:hover{border-color:var(--text-muted);}
+  .format-btn.active{
+    border-color:var(--amber);
+    background:rgba(255,138,61,0.08);
+    color:var(--amber);
+  }
+  .format-swatch{
+    border:1.5px solid currentColor;
+    opacity:0.85;
+  }
+  .fmt-916 .format-swatch{width:16px;height:28px;}
+  .fmt-11 .format-swatch{width:22px;height:22px;}
+  .fmt-45 .format-swatch{width:18px;height:22px;}
+  .fmt-169 .format-swatch{width:28px;height:16px;}
+  .format-btn small{
+    font-family:var(--mono);
+    font-weight:400;
+    font-size:10px;
+    color:var(--text-muted);
+  }
+
+  button.primary{
+    background:var(--amber);
+    color:#1a1305;
+    border:none;
+    border-radius:3px;
+    padding:15px;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    cursor:pointer;
+    transition:filter .12s ease;
+  }
+  button.primary:hover{filter:brightness(1.08);}
+  button.primary:disabled{
+    background:var(--panel-raised);
+    color:var(--text-muted);
+    cursor:not-allowed;
+  }
+
+  button.ghost{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-muted);
+    border-radius:3px;
+    padding:11px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  button.ghost:hover{border-color:var(--text-muted);color:var(--text);}
+
+  .progress-wrap{display:none;flex-direction:column;gap:8px;}
+  .progress-wrap.active{display:flex;}
+  .progress-track{
+    height:4px;
+    background:var(--panel-raised);
+    border-radius:2px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--teal);
+    transition:width .1s linear;
+  }
+  .progress-label{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-muted);
+    display:flex;
+    justify-content:space-between;
+  }
+
+  .result{
+    display:none;
+    flex-direction:column;
+    gap:10px;
+  }
+  .result.active{display:flex;}
+  .result a{
+    text-decoration:none;
+  }
+
+  .hint{
+    font-size:12px;
+    color:var(--text-muted);
+    line-height:1.5;
+  }
+
+  footer{
+    text-align:center;
+    padding:20px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:#4a4f57;
+  }
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d0f12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dot"></span>CROP</div>
+  <div class="tagline">reframe:auto&nbsp;&nbsp;v0.1-mvp</div>
+</header>
+
+<main>
+  <div class="stage">
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icon">◇ NO CLIP LOADED</div>
+      <h2>Drop a video, or click to browse</h2>
+      <p>MP4, WebM, MOV — processed entirely in your browser</p>
+      <input type="file" id="fileInput" accept="video/*">
+    </div>
+
+    <div class="url-row" id="urlRow">
+      <div class="url-divider"><span>or paste a direct video link</span></div>
+      <div class="url-input-group">
+        <input type="text" id="urlInput" placeholder="https://example.com/clip.mp4">
+        <button class="ghost" id="urlLoadBtn">Load</button>
+      </div>
+      <p class="hint" id="urlHint">Works with direct file links (.mp4/.webm/.mov) that allow cross-origin access. YouTube and other streaming platforms can't be loaded this way — download the file first, then drop it in above.</p>
+    </div>
+
+    <div class="preview-wrap" id="previewWrap">
+      <div class="frame">
+        <video id="previewVideo" muted loop playsinline></video>
+        <div class="crop-box" id="cropBox">
+          <div class="corner-tl"></div><div class="corner-tr"></div>
+          <div class="corner-bl"></div><div class="corner-br"></div>
+        </div>
+      </div>
+      <div class="readout">
+        <span>OUT&nbsp;<b id="dimsOut">—</b></span>
+        <span>SRC&nbsp;<b id="dimsSrc">—</b></span>
+        <span>DUR&nbsp;<b id="dimsDur">—</b></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div>
+      <div class="section-label">Target format</div>
+      <div class="format-grid">
+        <button class="format-btn fmt-916 active" data-ratio="0.5625" data-label="9:16">
+          <div class="format-swatch"></div>Reels / Shorts<small>9:16</small>
+        </button>
+        <button class="format-btn fmt-11" data-ratio="1" data-label="1:1">
+          <div class="format-swatch"></div>Square<small>1:1</small>
+        </button>
+        <button class="format-btn fmt-45" data-ratio="0.8" data-label="4:5">
+          <div class="format-swatch"></div>Portrait<small>4:5</small>
+        </button>
+        <button class="format-btn fmt-169" data-ratio="1.7778" data-label="16:9">
+          <div class="format-swatch"></div>Landscape<small>16:9</small>
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Reframe</div>
+      <p class="hint">Drag the crop window over the preview to choose what stays in frame. It's locked to the target ratio.</p>
+      <label class="track-toggle" id="trackToggleRow">
+        <input type="checkbox" id="trackToggle">
+        <span>Auto-track subject <small id="trackStatus">(loading model…)</small></span>
+      </label>
+    </div>
+
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;">
+      <button class="primary" id="exportBtn" disabled>Export cropped clip</button>
+      <button class="ghost" id="resetBtn">Load a different video</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label"><span id="progressText">Rendering…</span><span id="progressPct">0%</span></div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="section-label" style="color:var(--teal);">✓ Ready</div>
+      <a id="downloadLink" download="cropped-output.webm">
+        <button class="primary" style="width:100%;">Download clip</button>
+      </a>
+    </div>
+  </div>
+</main>
+
+<footer>BUILT IN-BROWSER — NO UPLOAD, NO SERVER</footer>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const previewWrap = document.getElementById('previewWrap');
+const video = document.getElementById('previewVideo');
+const cropBox = document.getElementById('cropBox');
+const frame = document.querySelector('.frame');
+const dimsOut = document.getElementById('dimsOut');
+const dimsSrc = document.getElementById('dimsSrc');
+const dimsDur = document.getElementById('dimsDur');
+const exportBtn = document.getElementById('exportBtn');
+const resetBtn = document.getElementById('resetBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressPct = document.getElementById('progressPct');
+const progressText = document.getElementById('progressText');
+const result = document.getElementById('result');
+const downloadLink = document.getElementById('downloadLink');
+
+let targetRatio = 0.5625; // w/h
+let crop = {x:0,y:0,w:0,h:0}; // in natural video pixel coords
+let vw = 0, vh = 0;
+let dragging = false, dragStartX=0, dragStartY=0, cropStartX=0, cropStartY=0;
+
+// Face tracking state
+const trackToggle = document.getElementById('trackToggle');
+const trackStatus = document.getElementById('trackStatus');
+const trackToggleRow = document.getElementById('trackToggleRow');
+let modelReady = false;
+let tracking = false;
+let trackLoopHandle = null;
+let smoothedCx = null, smoothedCy = null; // smoothed face-center in natural coords
+
+trackToggleRow.classList.add('disabled');
+trackToggle.disabled = true;
+
+(async function loadFaceModel(){
+  try{
+    const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models@master/tiny_face_detector';
+    await new Promise(res => {
+      if (window.faceapi) return res();
+      const check = setInterval(() => { if(window.faceapi){ clearInterval(check); res(); } }, 100);
+    });
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    modelReady = true;
+    trackStatus.textContent = '';
+    trackToggleRow.classList.remove('disabled');
+    trackToggle.disabled = false;
+  }catch(err){
+    trackStatus.textContent = '(unavailable offline)';
+  }
+})();
+
+trackToggle.addEventListener('change', () => {
+  tracking = trackToggle.checked && modelReady;
+  if (tracking) startTrackingLoop();
+  else stopTrackingLoop();
+});
+
+async function startTrackingLoop(){
+  smoothedCx = crop.x + crop.w/2;
+  smoothedCy = crop.y + crop.h/2;
+  runTrackTick();
+}
+function stopTrackingLoop(){
+  if (trackLoopHandle) clearTimeout(trackLoopHandle);
+}
+
+async function runTrackTick(){
+  if (!tracking) return;
+  try{
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({inputSize:224, scoreThreshold:0.4}));
+    if (detections.length){
+      // average center of all detected faces, weighted toward the largest
+      let best = detections.reduce((a,b) => (a.box.area > b.box.area ? a : b));
+      const targetCx = best.box.x + best.box.width/2;
+      const targetCy = best.box.y + best.box.height/2;
+      const lerp = 0.25;
+      smoothedCx = smoothedCx + (targetCx - smoothedCx) * lerp;
+      smoothedCy = smoothedCy + (targetCy - smoothedCy) * lerp;
+      crop.x = Math.min(Math.max(smoothedCx - crop.w/2, 0), vw - crop.w);
+      crop.y = Math.min(Math.max(smoothedCy - crop.h/2, 0), vh - crop.h);
+      renderCropBox();
+    }
+  }catch(err){ /* detection hiccup, skip this tick */ }
+  trackLoopHandle = setTimeout(runTrackTick, 250);
+}
+
+function fmtSeconds(s){
+  if(!isFinite(s)) return '—';
+  const m = Math.floor(s/60), sec = Math.floor(s%60);
+  return m+':'+String(sec).padStart(2,'0');
+}
+
+function loadFile(file){
+  if(!file || !file.type.startsWith('video/')) return;
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  dropzone.style.display = 'none';
+  previewWrap.classList.add('active');
+}
+
+video.addEventListener('loadedmetadata', () => {
+  vw = video.videoWidth; vh = video.videoHeight;
+  dimsSrc.textContent = vw+'×'+vh;
+  dimsDur.textContent = fmtSeconds(video.duration);
+  recomputeCrop();
+  video.play().catch(()=>{});
+  exportBtn.disabled = false;
+});
+
+function recomputeCrop(){
+  let cw, ch;
+  if (vw/vh > targetRatio){
+    ch = vh; cw = vh*targetRatio;
+  } else {
+    cw = vw; ch = vw/targetRatio;
+  }
+  crop.w = cw; crop.h = ch;
+  crop.x = Math.min(Math.max(crop.x, 0), vw-cw) || (vw-cw)/2;
+  crop.y = Math.min(Math.max(crop.y, 0), vh-ch) || (vh-ch)/2;
+  if (!isFinite(crop.x)) crop.x = (vw-cw)/2;
+  if (!isFinite(crop.y)) crop.y = (vh-ch)/2;
+  dimsOut.textContent = Math.round(cw)+'×'+Math.round(ch);
+  renderCropBox();
+}
+
+function renderCropBox(){
+  // map natural coords to displayed video box
+  const rect = video.getBoundingClientRect();
+  const frameRect = frame.getBoundingClientRect();
+  const scale = rect.width / vw;
+  cropBox.style.left = (rect.left - frameRect.left + crop.x*scale) + 'px';
+  cropBox.style.top = (rect.top - frameRect.top + crop.y*scale) + 'px';
+  cropBox.style.width = (crop.w*scale) + 'px';
+  cropBox.style.height = (crop.h*scale) + 'px';
+}
+
+window.addEventListener('resize', renderCropBox);
+
+// Format selection
+document.querySelectorAll('.format-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.format-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    targetRatio = parseFloat(btn.dataset.ratio);
+    recomputeCrop();
+  });
+});
+
+// Drag to reposition crop
+function startDrag(clientX, clientY){
+  dragging = true;
+  dragStartX = clientX; dragStartY = clientY;
+  cropStartX = crop.x; cropStartY = crop.y;
+  if (tracking){
+    tracking = false;
+    trackToggle.checked = false;
+    stopTrackingLoop();
+  }
+}
+function moveDrag(clientX, clientY){
+  if(!dragging) return;
+  const rect = video.getBoundingClientRect();
+  const scale = rect.width / vw;
+  const dx = (clientX - dragStartX)/scale;
+  const dy = (clientY - dragStartY)/scale;
+  crop.x = Math.min(Math.max(cropStartX + dx, 0), vw - crop.w);
+  crop.y = Math.min(Math.max(cropStartY + dy, 0), vh - crop.h);
+  renderCropBox();
+}
+function endDrag(){ dragging = false; }
+
+cropBox.addEventListener('mousedown', e => { e.preventDefault(); startDrag(e.clientX, e.clientY); });
+window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+window.addEventListener('mouseup', endDrag);
+cropBox.addEventListener('touchstart', e => { const t=e.touches[0]; startDrag(t.clientX, t.clientY); }, {passive:true});
+window.addEventListener('touchmove', e => { if(dragging){ const t=e.touches[0]; moveDrag(t.clientX, t.clientY); } }, {passive:true});
+window.addEventListener('touchend', endDrag);
+
+// URL input handling
+const urlInput = document.getElementById('urlInput');
+const urlLoadBtn = document.getElementById('urlLoadBtn');
+const urlHint = document.getElementById('urlHint');
+const defaultUrlHint = urlHint.textContent;
+
+const blockedPlatforms = [
+  { match: /youtube\.com|youtu\.be/i, name: 'YouTube' },
+  { match: /vimeo\.com/i, name: 'Vimeo' },
+  { match: /tiktok\.com/i, name: 'TikTok' },
+  { match: /instagram\.com/i, name: 'Instagram' },
+  { match: /twitter\.com|x\.com/i, name: 'X/Twitter' },
+  { match: /facebook\.com|fb\.watch/i, name: 'Facebook' }
+];
+
+function setUrlError(msg){
+  urlInput.classList.add('error');
+  urlHint.textContent = msg;
+  urlHint.classList.add('error-text');
+}
+function clearUrlError(){
+  urlInput.classList.remove('error');
+  urlHint.textContent = defaultUrlHint;
+  urlHint.classList.remove('error-text');
+}
+
+function loadFromUrl(rawUrl){
+  const url = rawUrl.trim();
+  if(!url) return;
+
+  const blocked = blockedPlatforms.find(p => p.match.test(url));
+  if (blocked){
+    setUrlError(`${blocked.name} links can't be loaded directly — their videos aren't served as plain files. Download it first (respecting their terms), then drop the file in above instead.`);
+    return;
+  }
+
+  clearUrlError();
+  video.src = url;
+  video.crossOrigin = 'anonymous';
+  dropzone.style.display = 'none';
+  previewWrap.classList.add('active');
+}
+
+video.addEventListener('error', () => {
+  if (video.src && video.src.startsWith('http')){
+    dropzone.style.display = '';
+    previewWrap.classList.remove('active');
+    setUrlError("Couldn't load that link — it's either not a direct video file, or the host doesn't allow cross-origin access. Try downloading it and using the file picker instead.");
+  }
+});
+
+urlLoadBtn.addEventListener('click', () => loadFromUrl(urlInput.value));
+urlInput.addEventListener('keydown', e => { if(e.key === 'Enter') loadFromUrl(urlInput.value); });
+urlInput.addEventListener('input', clearUrlError);
+
+// File input handling
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  loadFile(e.dataTransfer.files[0]);
+});
+
+resetBtn.addEventListener('click', () => {
+  video.pause();
+  video.src = '';
+  dropzone.style.display = '';
+  previewWrap.classList.remove('active');
+  result.classList.remove('active');
+  progressWrap.classList.remove('active');
+  exportBtn.disabled = true;
+  fileInput.value = '';
+});
+
+// Export via canvas + MediaRecorder
+exportBtn.addEventListener('click', async () => {
+  exportBtn.disabled = true;
+  result.classList.remove('active');
+  progressWrap.classList.add('active');
+  progressText.textContent = 'Rendering…';
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(crop.w);
+  canvas.height = Math.round(crop.h);
+  const ctx = canvas.getContext('2d');
+
+  let mimeType = 'video/webm;codecs=vp9';
+  if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4';
+  else if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
+  const canvasStream = canvas.captureStream(30);
+  try{
+    const srcStream = video.captureStream ? video.captureStream() : video.mozCaptureStream();
+    srcStream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
+  }catch(err){ /* audio capture not supported in this browser, continuing video-only */ }
+
+  const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 8_000_000 });
+  const chunks = [];
+  recorder.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+
+  const wasPaused = video.paused;
+  video.pause();
+  video.currentTime = 0;
+  await new Promise(res => { video.onseeked = res; });
+
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    downloadLink.href = url;
+    downloadLink.download = 'cropped-output.' + (mimeType.includes('mp4') ? 'mp4' : 'webm');
+    progressWrap.classList.remove('active');
+    result.classList.add('active');
+    exportBtn.disabled = false;
+    if(!wasPaused) video.play().catch(()=>{});
+  };
+
+  recorder.start();
+  video.play();
+
+  function draw(){
+    if (video.paused || video.ended){
+      recorder.stop();
+      return;
+    }
+    try{
+      ctx.drawImage(video, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
+    }catch(err){
+      recorder.stop();
+      progressWrap.classList.remove('active');
+      exportBtn.disabled = false;
+      alert("This video's host blocks exporting cropped frames (a cross-origin security restriction). Try downloading the file and using the file picker instead of the URL.");
+      return;
+    }
+    const pct = Math.min(100, Math.round((video.currentTime/video.duration)*100));
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    requestAnimationFrame(draw);
+  }
+  draw();
+});
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // Fails silently on file:// or unsupported contexts — expected until hosted over HTTPS.
+    });
+  });
+}
+</script>
+
+</body>
+</html>
