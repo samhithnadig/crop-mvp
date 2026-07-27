@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenShorts-Lite Dashboard</title>
+<style>
+  :root{
+    --bg:#0d0f12;
+    --sidebar:#111418;
+    --panel:#15181c;
+    --panel-raised:#1c2026;
+    --border:#262b31;
+    --amber:#ff8a3d;
+    --teal:#2dd4bf;
+    --red:#e05a4d;
+    --text:#f1efe9;
+    --text-muted:#8a8f98;
+    --mono: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    display:flex;
+    min-height:100vh;
+  }
+
+  /* Sidebar */
+  .sidebar{
+    width:220px;
+    flex-shrink:0;
+    background:var(--sidebar);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    padding:20px 14px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 10px 24px;
+    font-weight:900;
+    font-size:16px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+  }
+  .brand .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--teal);
+    box-shadow:0 0 10px var(--teal);
+  }
+  .nav-section-label{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    padding:14px 10px 8px;
+  }
+  .nav-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 10px;
+    border-radius:5px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--text-muted);
+    cursor:pointer;
+    margin-bottom:2px;
+  }
+  .nav-item:hover{background:var(--panel-raised);color:var(--text);}
+  .nav-item.active{
+    background:rgba(255,138,61,0.1);
+    color:var(--amber);
+  }
+  .nav-item.disabled{
+    cursor:default;
+    opacity:0.5;
+  }
+  .nav-item.disabled:hover{background:none;color:var(--text-muted);}
+  .badge{
+    font-family:var(--mono);
+    font-size:9px;
+    padding:2px 6px;
+    border-radius:10px;
+    background:var(--panel-raised);
+    color:var(--text-muted);
+    letter-spacing:0.04em;
+  }
+  .sidebar-footer{
+    margin-top:auto;
+    padding-top:14px;
+    border-top:1px solid var(--border);
+  }
+
+  /* Main area */
+  .main-wrap{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 32px;
+    border-bottom:1px solid var(--border);
+  }
+  .page-title{font-size:18px;font-weight:700;}
+  .conn-status{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-muted);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);}
+  .conn-dot.ok{background:var(--teal);}
+  .conn-dot.bad{background:var(--red);}
+
+  .page{
+    flex:1;
+    padding:32px;
+    max-width:900px;
+    width:100%;
+  }
+  .page-section{display:none;}
+  .page-section.active{display:block;}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:28px;
+    margin-bottom:20px;
+  }
+  .section-label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    margin-bottom:14px;
+  }
+  label.field{display:block;margin-bottom:18px;}
+  label.field span.label-text{
+    display:block;
+    font-size:13px;
+    color:var(--text-muted);
+    margin-bottom:8px;
+  }
+  input[type=text], input[type=number], input[type=password]{
+    width:100%;
+    background:var(--panel-raised);
+    border:1px solid var(--border);
+    border-radius:3px;
+    color:var(--text);
+    padding:12px 14px;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  input:focus{outline:none;border-color:var(--amber);}
+  input[type=file]{
+    width:100%;
+    background:var(--panel-raised);
+    border:1px dashed var(--border);
+    border-radius:3px;
+    color:var(--text-muted);
+    padding:24px 14px;
+    font-family:var(--sans);
+    font-size:13px;
+  }
+
+  .mode-tabs{display:flex;gap:8px;margin-bottom:20px;}
+  .mode-tab{
+    flex:1;
+    background:var(--panel-raised);
+    border:1px solid var(--border);
+    border-radius:3px;
+    color:var(--text-muted);
+    padding:12px;
+    cursor:pointer;
+    font-size:13px;
+    font-weight:600;
+    text-align:center;
+  }
+  .mode-tab.active{border-color:var(--teal);color:var(--teal);background:rgba(45,212,191,0.08);}
+  .mode-panel{display:none;}
+  .mode-panel.active{display:block;}
+
+  button.primary{
+    background:var(--amber);
+    color:#1a1305;
+    border:none;
+    border-radius:3px;
+    padding:15px;
+    font-size:14px;
+    font-weight:700;
+    width:100%;
+    cursor:pointer;
+  }
+  button.primary:hover{filter:brightness(1.08);}
+  button.primary:disabled{background:var(--panel-raised);color:var(--text-muted);cursor:not-allowed;}
+  button.ghost{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:3px;
+    padding:10px 16px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  button.ghost:hover{border-color:var(--teal);}
+
+  .status-row{display:none;align-items:center;gap:10px;margin-top:16px;font-family:var(--mono);font-size:13px;color:var(--text-muted);}
+  .status-row.active{display:flex;}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);animation:pulse 1.2s ease-in-out infinite;}
+  .status-dot.error{background:var(--red);animation:none;}
+  .status-dot.done{background:var(--teal);animation:none;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.3;}}
+
+  .error-box{
+    display:none;
+    background:rgba(224,90,77,0.08);
+    border:1px solid var(--red);
+    border-radius:4px;
+    padding:14px;
+    margin-top:14px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--red);
+    white-space:pre-wrap;
+    word-break:break-word;
+    max-height:200px;
+    overflow-y:auto;
+  }
+  .error-box.active{display:block;}
+
+  .save-confirm{
+    display:none;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--teal);
+    margin-top:10px;
+  }
+  .save-confirm.active{display:block;}
+
+  /* Clip results grid */
+  .clip-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    gap:16px;
+  }
+  .clip-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .clip-thumb{
+    aspect-ratio:9/16;
+    background:linear-gradient(160deg, var(--panel-raised), #0a0c0e);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-muted);
+    position:relative;
+  }
+  .clip-thumb .duration-badge{
+    position:absolute;
+    bottom:8px;
+    right:8px;
+    background:rgba(0,0,0,0.7);
+    padding:2px 6px;
+    border-radius:3px;
+    font-size:10px;
+    color:var(--text);
+  }
+  .clip-body{padding:14px;}
+  .clip-title{font-size:13px;font-weight:700;margin-bottom:6px;line-height:1.3;}
+  .clip-meta{font-family:var(--mono);font-size:10px;color:var(--teal);margin-bottom:8px;}
+  .clip-reason{font-size:12px;color:var(--text-muted);line-height:1.4;margin-bottom:12px;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .clip-body a{text-decoration:none;display:block;}
+  .clip-body button{width:100%;}
+
+  .empty-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-muted);
+  }
+  .empty-state .icon{font-size:32px;margin-bottom:12px;opacity:0.5;}
+  .empty-state p{font-size:13px;margin:0;}
+
+  .hint{font-size:12px;color:var(--text-muted);line-height:1.5;margin-top:10px;}
+
+  .coming-soon-card{
+    text-align:center;
+    padding:80px 40px;
+    color:var(--text-muted);
+  }
+  .coming-soon-card h2{color:var(--text);font-size:20px;margin-bottom:10px;}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand"><span class="dot"></span>OpenShorts-Lite</div>
+
+  <div class="nav-section-label">Tools</div>
+  <div class="nav-item active" data-page="clip-generator">Clip Generator</div>
+  <div class="nav-item disabled" data-page="ai-shorts">AI Shorts <span class="badge">soon</span></div>
+  <div class="nav-item disabled" data-page="youtube-studio">YouTube Studio <span class="badge">soon</span></div>
+
+  <div class="nav-section-label">Account</div>
+  <div class="nav-item" data-page="settings">Settings</div>
+
+  <div class="sidebar-footer">
+    <div class="conn-status">
+      <span class="conn-dot" id="connDot"></span>
+      <span id="connText">Not connected</span>
+    </div>
+  </div>
+</div>
+
+<div class="main-wrap">
+  <div class="topbar">
+    <div class="page-title" id="pageTitle">Clip Generator</div>
+  </div>
+
+  <div class="page">
+
+    <!-- CLIP GENERATOR -->
+    <div class="page-section active" id="page-clip-generator">
+      <div class="card">
+        <div class="section-label">Source video</div>
+        <div class="mode-tabs">
+          <div class="mode-tab active" data-mode="youtube">YouTube link</div>
+          <div class="mode-tab" data-mode="upload">Upload file</div>
+        </div>
+        <div class="mode-panel active" id="panel-youtube">
+          <label class="field">
+            <span class="label-text">YouTube URL</span>
+            <input type="text" id="youtubeUrl" placeholder="https://youtube.com/watch?v=...">
+          </label>
+        </div>
+        <div class="mode-panel" id="panel-upload">
+          <label class="field">
+            <span class="label-text">Video file</span>
+            <input type="file" id="fileInput" accept="video/*">
+          </label>
+        </div>
+        <label class="field">
+          <span class="label-text">Max clips to generate</span>
+          <input type="number" id="maxClips" value="5" min="1" max="10">
+        </label>
+        <button class="primary" id="submitBtn">Generate clips</button>
+        <div class="status-row" id="statusRow">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Queued…</span>
+        </div>
+        <div class="error-box" id="errorBox"></div>
+      </div>
+
+      <div class="section-label" style="padding:0 4px;">Clip results</div>
+      <div class="clip-grid" id="clipsGrid"></div>
+      <div class="empty-state" id="emptyState">
+        <div class="icon">◇</div>
+        <p>No clips yet — generate some above.</p>
+      </div>
+    </div>
+
+    <!-- AI SHORTS (stub) -->
+    <div class="page-section" id="page-ai-shorts">
+      <div class="card coming-soon-card">
+        <h2>AI Shorts</h2>
+        <p>UGC-style videos with AI actors, voiceover, and lip-sync — not built in this MVP yet.<br>The Clip Generator is the working core; this would be a bigger v2 addition (needs fal.ai + ElevenLabs integration).</p>
+      </div>
+    </div>
+
+    <!-- YOUTUBE STUDIO (stub) -->
+    <div class="page-section" id="page-youtube-studio">
+      <div class="card coming-soon-card">
+        <h2>YouTube Studio</h2>
+        <p>AI thumbnails, titles, and direct publishing — not built in this MVP yet.<br>Worth adding once the Clip Generator has real users validating the core idea.</p>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page-section" id="page-settings">
+      <div class="card">
+        <div class="section-label">Backend connection</div>
+        <label class="field">
+          <span class="label-text">Backend URL</span>
+          <input type="text" id="apiBase" placeholder="http://localhost:8000">
+        </label>
+        <p class="hint">Running locally: http://localhost:8000. Running in Codespaces: paste the forwarded port URL from the Ports tab (must be set to Public).</p>
+      </div>
+
+      <div class="card">
+        <div class="section-label">API keys</div>
+        <label class="field">
+          <span class="label-text">Gemini API key</span>
+          <input type="password" id="geminiKey" placeholder="AIza...">
+        </label>
+        <p class="hint">Free, no card required — get one at <span style="color:var(--teal);">aistudio.google.com/apikey</span>. Stored only in this browser (localStorage), sent with each request, never saved on the server.</p>
+        <button class="primary" id="saveSettingsBtn" style="margin-top:14px;">Save settings</button>
+        <div class="save-confirm" id="saveConfirm">✓ Saved</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ---------- Persisted settings (localStorage) ----------
+const apiBaseInput = document.getElementById('apiBase');
+const geminiKeyInput = document.getElementById('geminiKey');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const saveConfirm = document.getElementById('saveConfirm');
+const connDot = document.getElementById('connDot');
+const connText = document.getElementById('connText');
+
+function loadSettings(){
+  apiBaseInput.value = localStorage.getItem('osl_apiBase') || 'http://localhost:8000';
+  geminiKeyInput.value = localStorage.getItem('osl_geminiKey') || '';
+}
+function saveSettings(){
+  localStorage.setItem('osl_apiBase', apiBaseInput.value.trim());
+  localStorage.setItem('osl_geminiKey', geminiKeyInput.value.trim());
+  saveConfirm.classList.add('active');
+  setTimeout(() => saveConfirm.classList.remove('active'), 2000);
+  checkConnection();
+}
+saveSettingsBtn.addEventListener('click', saveSettings);
+loadSettings();
+
+async function checkConnection(){
+  const base = (localStorage.getItem('osl_apiBase') || '').replace(/\/$/, '');
+  if (!base){ connDot.className = 'conn-dot'; connText.textContent = 'Not configured'; return; }
+  try{
+    const res = await fetch(base + '/health', { signal: AbortSignal.timeout(4000) });
+    if (res.ok){ connDot.className = 'conn-dot ok'; connText.textContent = 'Connected'; }
+    else { connDot.className = 'conn-dot bad'; connText.textContent = 'Server error'; }
+  }catch(err){
+    connDot.className = 'conn-dot bad';
+    connText.textContent = 'Unreachable';
+  }
+}
+checkConnection();
+
+// ---------- Sidebar navigation ----------
+const navItems = document.querySelectorAll('.nav-item[data-page]');
+const pageTitle = document.getElementById('pageTitle');
+const titles = {
+  'clip-generator': 'Clip Generator',
+  'ai-shorts': 'AI Shorts',
+  'youtube-studio': 'YouTube Studio',
+  'settings': 'Settings'
+};
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    if (item.classList.contains('disabled') && item.dataset.page !== 'settings'){
+      // still allow viewing the "coming soon" stub page
+    }
+    navItems.forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + item.dataset.page).classList.add('active');
+    pageTitle.textContent = titles[item.dataset.page];
+  });
+});
+
+// ---------- Mode tabs (YouTube vs Upload) ----------
+const modeTabs = document.querySelectorAll('.mode-tab');
+const panels = { youtube: document.getElementById('panel-youtube'), upload: document.getElementById('panel-upload') };
+let currentMode = 'youtube';
+modeTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    modeTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentMode = tab.dataset.mode;
+    Object.values(panels).forEach(p => p.classList.remove('active'));
+    panels[currentMode].classList.add('active');
+  });
+});
+
+// ---------- Clip generation ----------
+const youtubeUrlInput = document.getElementById('youtubeUrl');
+const fileInput = document.getElementById('fileInput');
+const maxClipsInput = document.getElementById('maxClips');
+const submitBtn = document.getElementById('submitBtn');
+const statusRow = document.getElementById('statusRow');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const errorBox = document.getElementById('errorBox');
+const clipsGrid = document.getElementById('clipsGrid');
+const emptyState = document.getElementById('emptyState');
+
+let pollHandle = null;
+
+function resetUI(){
+  errorBox.classList.remove('active');
+  errorBox.textContent = '';
+  if (pollHandle) clearInterval(pollHandle);
+}
+function showError(msg){
+  errorBox.textContent = msg;
+  errorBox.classList.add('active');
+  statusRow.classList.remove('active');
+  submitBtn.disabled = false;
+}
+function setStatus(text, kind){
+  statusRow.classList.add('active');
+  statusText.textContent = text;
+  statusDot.className = 'status-dot' + (kind ? ' ' + kind : '');
+}
+
+submitBtn.addEventListener('click', async () => {
+  resetUI();
+  const apiBase = (localStorage.getItem('osl_apiBase') || '').replace(/\/$/, '');
+  const geminiKey = localStorage.getItem('osl_geminiKey') || '';
+
+  if (!apiBase){ showError('Set your Backend URL in Settings first.'); return; }
+  if (!geminiKey){ showError('Add your Gemini API key in Settings first (free, no card needed).'); return; }
+
+  const formData = new FormData();
+  if (currentMode === 'youtube'){
+    const url = youtubeUrlInput.value.trim();
+    if (!url){ showError('Paste a YouTube URL first.'); return; }
+    formData.append('youtube_url', url);
+  } else {
+    const file = fileInput.files[0];
+    if (!file){ showError('Choose a video file first.'); return; }
+    formData.append('file', file);
+  }
+  formData.append('max_clips', maxClipsInput.value || '5');
+  formData.append('gemini_api_key', geminiKey);
+
+  submitBtn.disabled = true;
+  setStatus('Submitting job…');
+
+  let jobId;
+  try{
+    const res = await fetch(apiBase + '/process', { method: 'POST', body: formData });
+    if (!res.ok) throw new Error(`Server returned ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    jobId = data.job_id;
+  }catch(err){
+    showError(`Couldn't reach the backend at ${apiBase}.\n\nCheck Settings, and make sure the server is running.\n\nDetails: ${err.message}`);
+    return;
+  }
+
+  setStatus('Processing — transcribing, picking highlights, cropping…');
+
+  pollHandle = setInterval(async () => {
+    try{
+      const res = await fetch(apiBase + '/status/' + jobId);
+      const data = await res.json();
+
+      if (data.status === 'queued' || data.status === 'processing'){
+        setStatus(data.status === 'queued' ? 'Queued…' : 'Processing — this can take a few minutes…');
+        return;
+      }
+      clearInterval(pollHandle);
+
+      if (data.status === 'error'){
+        setStatus('Failed', 'error');
+        showError(data.error || 'Unknown error — check the server terminal for the full traceback.');
+        submitBtn.disabled = false;
+        return;
+      }
+      if (data.status === 'done'){
+        setStatus(`Done — ${data.clips.length} clip(s) ready`, 'done');
+        submitBtn.disabled = false;
+        renderClips(apiBase, jobId, data.clips);
+      }
+    }catch(err){
+      clearInterval(pollHandle);
+      showError(`Lost connection while checking status: ${err.message}`);
+      submitBtn.disabled = false;
+    }
+  }, 3000);
+});
+
+function renderClips(apiBase, jobId, clips){
+  emptyState.style.display = 'none';
+  clips.forEach((clip, i) => {
+    const card = document.createElement('div');
+    card.className = 'clip-card';
+    const dur = (clip.end - clip.start).toFixed(0);
+    card.innerHTML = `
+      <div class="clip-thumb">9:16<span class="duration-badge">${dur}s</span></div>
+      <div class="clip-body">
+        <div class="clip-title">${escapeHtml(clip.title || 'Clip ' + (i+1))}</div>
+        <div class="clip-meta">${clip.start.toFixed(1)}s – ${clip.end.toFixed(1)}s</div>
+        <div class="clip-reason">${escapeHtml(clip.reason || '')}</div>
+        <a href="${apiBase}/clip/${jobId}/${i}" download="clip_${i+1}.mp4"><button class="ghost">Download</button></a>
+      </div>
+    `;
+    clipsGrid.prepend(card);
+  });
+}
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
