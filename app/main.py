@@ -33,10 +33,10 @@ class JobStatus(BaseModel):
     clips: Optional[list] = None
 
 
-def run_job(job_id: str, youtube_url: Optional[str], uploaded_path: Optional[str], max_clips: int):
+def run_job(job_id: str, youtube_url: Optional[str], uploaded_path: Optional[str], max_clips: int, api_key: Optional[str]):
     JOBS[job_id]["status"] = "processing"
     try:
-        result = pipeline.process_job(job_id, youtube_url, uploaded_path, max_clips)
+        result = pipeline.process_job(job_id, youtube_url, uploaded_path, max_clips, api_key=api_key)
         JOBS[job_id]["status"] = "done"
         JOBS[job_id]["clips"] = result["clips"]
     except Exception as e:
@@ -49,6 +49,7 @@ async def process(
     background_tasks: BackgroundTasks,
     youtube_url: Optional[str] = Form(None),
     max_clips: int = Form(5),
+    gemini_api_key: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
 ):
     if not youtube_url and not file:
@@ -65,7 +66,7 @@ async def process(
             shutil.copyfileobj(file.file, f)
 
     JOBS[job_id] = {"job_id": job_id, "status": "queued", "error": None, "clips": None}
-    background_tasks.add_task(run_job, job_id, youtube_url, uploaded_path, max_clips)
+    background_tasks.add_task(run_job, job_id, youtube_url, uploaded_path, max_clips, gemini_api_key)
 
     return JOBS[job_id]
 
