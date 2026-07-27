@@ -86,13 +86,15 @@ def transcribe(video_path: str) -> list[dict]:
     return [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in segments]
 
 
-def select_highlights(transcript: list[dict], video_duration: float, max_clips: int = 5) -> list[Highlight]:
+def select_highlights(transcript: list[dict], video_duration: float, max_clips: int = 5, api_key: Optional[str] = None) -> list[Highlight]:
     """Feeds the transcript to Gemini and asks it to pick the best short-form moments."""
-    if not GEMINI_API_KEY:
+    key = api_key or GEMINI_API_KEY
+    if not key:
         raise RuntimeError(
-            "GEMINI_API_KEY is not set. Get a free key (no card required) at "
-            "https://aistudio.google.com/apikey and set it as an environment variable."
+            "No Gemini API key provided. Get a free key (no card required) at "
+            "https://aistudio.google.com/apikey and enter it in Settings, or set GEMINI_API_KEY."
         )
+    genai.configure(api_key=key)
 
     transcript_text = "\n".join(f"[{t['start']:.1f}-{t['end']:.1f}] {t['text']}" for t in transcript)
 
@@ -210,7 +212,7 @@ def crop_segment(source_path: str, start: float, end: float, out_path: str, targ
     return out_path
 
 
-def process_job(job_id: str, youtube_url: Optional[str], uploaded_path: Optional[str], max_clips: int = 5) -> dict:
+def process_job(job_id: str, youtube_url: Optional[str], uploaded_path: Optional[str], max_clips: int = 5, api_key: Optional[str] = None) -> dict:
     job_dir = os.path.join(WORKDIR, job_id)
     os.makedirs(job_dir, exist_ok=True)
 
@@ -221,7 +223,7 @@ def process_job(job_id: str, youtube_url: Optional[str], uploaded_path: Optional
     cap.release()
 
     transcript = transcribe(source)
-    highlights = select_highlights(transcript, duration, max_clips=max_clips)
+    highlights = select_highlights(transcript, duration, max_clips=max_clips, api_key=api_key)
 
     clips = []
     for i, h in enumerate(highlights):
